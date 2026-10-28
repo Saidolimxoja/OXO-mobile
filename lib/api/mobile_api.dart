@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:geolocator/geolocator.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import 'api_client.dart';
 import 'models.dart';
@@ -84,11 +85,14 @@ class MobileApi {
   }
 
   Future<AttendanceToday> checkIn(File selfie, Position pos) async {
+    // Версия нужна серверу, чтобы не принимать «Келдим» от устаревшего приложения
+    final info = await PackageInfo.fromPlatform();
     final fields = {
       'lat': '${pos.latitude}',
       'lon': '${pos.longitude}',
       'accuracy': '${pos.accuracy.round()}',
       'mock': '${pos.isMocked}',
+      'appVersion': info.version,
     };
     final data = await _api.multipart(
       '/mobile/attendance/check-in',
@@ -96,18 +100,6 @@ class MobileApi {
       [selfie],
       fileField: 'selfie',
     ) as Map<String, dynamic>;
-    return AttendanceToday.fromJson(data);
-  }
-
-  Future<AttendanceToday> checkOut([Position? pos]) async {
-    final body = <String, dynamic>{
-      if (pos != null) ...{
-        'lat': pos.latitude,
-        'lon': pos.longitude,
-        'accuracy': pos.accuracy.round(),
-      },
-    };
-    final data = await _api.post('/mobile/attendance/check-out', body) as Map<String, dynamic>;
     return AttendanceToday.fromJson(data);
   }
 
