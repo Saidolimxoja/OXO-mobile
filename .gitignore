@@ -46,7 +46,7 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
-OXO.apk
+HududNazorati.apk
 
 # Готовая сборка (build-apk.ps1)
-/OXO.apk
+/HududNazorati.apk

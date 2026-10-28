@@ -32,7 +32,7 @@ class OxoApp extends StatelessWidget {
     return AnimatedBuilder(
       animation: AppSettings.instance,
       builder: (context, _) => MaterialApp(
-        title: 'OXO',
+        title: 'Hudud Nazorati',
         navigatorKey: navigatorKey,
         debugShowCheckedModeBanner: false,
         theme: buildTheme(Brightness.light),

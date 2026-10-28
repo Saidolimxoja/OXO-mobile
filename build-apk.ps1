@@ -12,6 +12,6 @@ flutter pub get
 flutter build apk --release --dart-define=API_BASE_URL=$ApiUrl
 
 $apk = Join-Path $PSScriptRoot 'build\app\outputs\flutter-apk\app-release.apk'
-$out = Join-Path $PSScriptRoot 'OXO.apk'
+$out = Join-Path $PSScriptRoot 'HududNazorati.apk'
 Copy-Item $apk $out -Force
 Write-Output "Tayyor: $out"

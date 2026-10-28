@@ -51,9 +51,9 @@ class TrackService extends ChangeNotifier {
       distanceFilter: 20,
       intervalDuration: const Duration(minutes: 1),
       foregroundNotificationConfig: const ForegroundNotificationConfig(
-        notificationTitle: 'OXO',
+        notificationTitle: 'Ҳудуд назорати',
         notificationText: 'Иш вақтида (09:00–18:00) жойлашув иш ҳисоботига ёзилади',
-        notificationChannelName: 'OXO трек',
+        notificationChannelName: 'Ҳудуд назорати — трек',
         enableWakeLock: true,
         setOngoing: true,
       ),

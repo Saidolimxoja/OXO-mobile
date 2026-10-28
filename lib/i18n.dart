@@ -3,7 +3,7 @@ import 'settings.dart';
 
 /// Каждая строка: [ўзбекча лотин, ўзбекча кирилл, русский].
 const Map<String, List<String>> _strings = {
-  'appName': ['OXO', 'OXO', 'OXO'],
+  'appName': ['Hudud Nazorati', 'Ҳудуд назорати', 'Худуд назорати'],
   'appSub': ['Ishlar hisoboti', 'Ишлар ҳисоботи', 'Отчёт о работах'],
   'cancel': ['Bekor qilish', 'Бекор қилиш', 'Отмена'],
   'retry': ['Qayta urinish', 'Қайта уриниш', 'Повторить'],
@@ -125,9 +125,9 @@ const Map<String, List<String>> _strings = {
     'Нет разрешения на геолокацию',
   ],
   'gpsDeniedForever': [
-    'Joylashuv ruxsati yopilgan. Telefon sozlamalaridan OXO ilovasiga ruxsat bering.',
-    'Жойлашув рухсати ёпилган. Телефон созламаларидан OXO иловасига рухсат беринг.',
-    'Доступ к геолокации запрещён. Разрешите его приложению OXO в настройках телефона.',
+    'Joylashuv ruxsati yopilgan. Telefon sozlamalaridan «Hudud Nazorati» ilovasiga ruxsat bering.',
+    'Жойлашув рухсати ёпилган. Телефон созламаларидан «Ҳудуд назорати» иловасига рухсат беринг.',
+    'Доступ к геолокации запрещён. Разрешите его приложению «Худуд назорати» в настройках телефона.',
   ],
   'gpsUnavailable': [
     'Joylashuvni aniqlab bo\'lmadi. Ochiq joyga chiqing.',
@@ -203,8 +203,13 @@ const Map<String, List<String>> _strings = {
   'faceStraight': ['To\'g\'ri qarang', 'Тўғри қаранг', 'Смотрите прямо'],
   'faceEyes': ['Ko\'zlaringizni oching', 'Кўзларингизни очинг', 'Откройте глаза'],
   'faceHold': ['Qimirlamang…', 'Қимирламанг…', 'Не двигайтесь…'],
-  'nearOffice': ['Obyekt yonidasiz', 'Объект ёнидасиз', 'Вы у объекта'],
-  'farFromOffice': ['Obyektdan {m} m uzoqda', 'Объектдан {m} м узоқда', 'До объекта {m} м'],
+  'faceManual': [
+    'Yuzingizni ovalga joylab, tugmani bosing',
+    'Юзингизни овалга жойлаб, тугмани босинг',
+    'Поместите лицо в овал и нажмите кнопку',
+  ],
+  'nearOffice': ['Ofisdasiz', 'Офисдасиз', 'Вы в офисе'],
+  'farFromOffice': ['Ofisdan {m} m uzoqda', 'Офисдан {m} м узоқда', 'До офиса {m} м'],
 
   // причины отказа «Келдим» по коду сервера
   'err_outside': ['Siz ish joyingizdan uzoqdasiz', 'Сиз иш жойингиздан узоқдасиз', 'Вы далеко от рабочего места'],

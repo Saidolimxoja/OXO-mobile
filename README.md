@@ -1,4 +1,4 @@
-# OXO — мобильное приложение (Android)
+# «Ҳудуд назорати» (Hudud Nazorati) — мобильное приложение OXO (Android)
 
 Отчёты техников о работах и трек в рабочее время для «Ишлар ҳисоботи», отметка прихода
 для «Давомат».
@@ -38,7 +38,7 @@
 powershell -ExecutionPolicy Bypass -File build-apk.ps1 -ApiUrl https://<адрес API>
 ```
 
-Готовый файл — `OXO.apk` в корне проекта.
+Готовый файл — `HududNazorati.apk` в корне проекта.
 
 Иконка — знак UNICON SOFT, исходники в `assets/icon`. После их замены:
 `dart run flutter_launcher_icons`.

@@ -11,11 +11,16 @@ import '../api/models.dart';
 import '../i18n.dart';
 import '../theme.dart';
 
-/// Что мешает снимку прямо сейчас; [ok] — лицо в овале, можно снимать.
-enum FaceHint { starting, noFace, manyFaces, closer, farther, center, straight, eyes, ok }
+/// Что мешает снимку прямо сейчас; [ok] — лицо в овале, можно снимать;
+/// [manual] — распознавание на этом телефоне не заработало, снимок кнопкой.
+enum FaceHint { starting, noFace, manyFaces, closer, farther, center, straight, eyes, ok, manual }
 
 /// Сколько держать лицо ровно, прежде чем снимок сделается сам.
 const _holdStill = Duration(milliseconds: 700);
+
+/// Если за это время ни один кадр не распознан, камера переходит на снимок
+/// кнопкой: лицо всё равно сверяет сервер, а человек не застревает на экране.
+const _detectTimeout = Duration(seconds: 4);
 
 /// Второе лицо считается, если оно не меньше этой доли самого крупного — как на сервере.
 const _secondFaceShare = 0.5;
@@ -59,6 +64,8 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
   DateTime? _okSince;
   bool _busy = false;
   bool _capturing = false;
+  bool _detected = false;
+  Timer? _detectWatch;
   String? _error;
 
   @override
@@ -71,6 +78,7 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
   @override
   void dispose() {
     SystemChrome.setPreferredOrientations(DeviceOrientation.values);
+    _detectWatch?.cancel();
     _camera?.dispose();
     _detector.close();
     super.dispose();
@@ -99,13 +107,22 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
       _lens = lens;
       setState(() => _camera = camera);
       await camera.startImageStream(_onFrame);
+      _detectWatch = Timer(_detectTimeout, _fallBackToManual);
     } catch (_) {
       if (mounted) setState(() => _error = t('cameraUnavailable'));
     }
   }
 
+  Future<void> _fallBackToManual() async {
+    final camera = _camera;
+    if (_detected || !mounted || camera == null) return;
+
+    setState(() => _hint = FaceHint.manual);
+    if (camera.value.isStreamingImages) await camera.stopImageStream();
+  }
+
   Future<void> _onFrame(CameraImage frame) async {
-    if (_busy || _capturing) return;
+    if (_busy || _capturing || _hint == FaceHint.manual) return;
     _busy = true;
 
     try {
@@ -113,6 +130,7 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
       if (input == null) return;
 
       final faces = await _detector.processImage(input);
+      _detected = true;
       // Для 90/270° кадр сенсора лежит на боку: ширина и высота меняются местами
       final upright = _sideways ? Size(frame.height.toDouble(), frame.width.toDouble()) : Size(frame.width.toDouble(), frame.height.toDouble());
       final hint = _judge(faces, upright);
@@ -146,9 +164,14 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
     }
 
     final plane = frame.planes.first;
+    // CameraX отдаёт NV21 с хвостом нулей, когда у строк сенсора есть отступ;
+    // ML Kit такой буфер не принимает — нужен ровно width × height × 1,5 байта
+    final size = frame.width * frame.height * 3 ~/ 2;
+
+    if (plane.bytes.length < size) return null;
 
     return InputImage.fromBytes(
-      bytes: plane.bytes,
+      bytes: plane.bytes.length == size ? plane.bytes : Uint8List.sublistView(plane.bytes, 0, size),
       metadata: InputImageMetadata(
         size: Size(frame.width.toDouble(), frame.height.toDouble()),
         rotation: rotation,
@@ -196,7 +219,7 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
     setState(() => _capturing = true);
 
     try {
-      await camera.stopImageStream();
+      if (camera.value.isStreamingImages) await camera.stopImageStream();
       final shot = await camera.takePicture();
       HapticFeedback.mediumImpact();
       if (mounted) Navigator.of(context).pop(File(shot.path));
@@ -206,7 +229,7 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
         _capturing = false;
         _okSince = null;
       });
-      await camera.startImageStream(_onFrame);
+      if (_hint != FaceHint.manual) await camera.startImageStream(_onFrame);
     }
   }
 
@@ -220,12 +243,14 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
         FaceHint.straight => t('faceStraight'),
         FaceHint.eyes => t('faceEyes'),
         FaceHint.ok => t('faceHold'),
+        FaceHint.manual => t('faceManual'),
       };
 
   @override
   Widget build(BuildContext context) {
     final camera = _camera;
     final ready = _hint == FaceHint.ok;
+    final canShoot = ready || _hint == FaceHint.manual;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -247,7 +272,7 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
                 _PlaceChip(position: widget.position, office: widget.office),
                 const SizedBox(height: 20),
                 _Shutter(
-                  enabled: ready && !_capturing,
+                  enabled: canShoot && !_capturing,
                   busy: _capturing,
                   onPressed: _capture,
                 ),
