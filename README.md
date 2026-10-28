@@ -38,7 +38,8 @@
 powershell -ExecutionPolicy Bypass -File build-apk.ps1 -ApiUrl https://<адрес API>
 ```
 
-Готовый файл — `HududNazorati.apk` в корне проекта.
+Готовые файлы в корне проекта: `HududNazorati-arm64.apk` — почти все телефоны,
+`HududNazorati-arm32.apk` — старые 32-битные (на них arm64 не ставится).
 
 Иконка — знак UNICON SOFT, исходники в `assets/icon`. После их замены:
 `dart run flutter_launcher_icons`.

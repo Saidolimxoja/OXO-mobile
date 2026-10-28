@@ -16,7 +16,7 @@ import '../theme.dart';
 enum FaceHint { starting, noFace, manyFaces, closer, farther, center, straight, eyes, ok, manual }
 
 /// Сколько держать лицо ровно, прежде чем снимок сделается сам.
-const _holdStill = Duration(milliseconds: 700);
+const _holdStill = Duration(milliseconds: 500);
 
 /// Если за это время ни один кадр не распознан, камера переходит на снимок
 /// кнопкой: лицо всё равно сверяет сервер, а человек не застревает на экране.
@@ -26,7 +26,7 @@ const _detectTimeout = Duration(seconds: 4);
 const _secondFaceShare = 0.5;
 
 /// Ширина лица в кадре: меньше — далеко, больше — слишком близко.
-const _minFaceWidth = 0.35;
+const _minFaceWidth = 0.3;
 const _maxFaceWidth = 0.8;
 
 /// Насколько центр лица может уйти от центра овала.
@@ -233,7 +233,9 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
     }
   }
 
-  String get _hintText => switch (_hint) {
+  String get _hintText => _capturing
+      ? t('faceCapturing')
+      : switch (_hint) {
         FaceHint.starting => t('faceStarting'),
         FaceHint.noFace => t('faceNotFound'),
         FaceHint.manyFaces => t('faceOnlyOne'),
@@ -249,8 +251,9 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
   @override
   Widget build(BuildContext context) {
     final camera = _camera;
-    final ready = _hint == FaceHint.ok;
-    final canShoot = ready || _hint == FaceHint.manual;
+    final ready = _hint == FaceHint.ok || _capturing;
+    // Кнопка только на телефонах, где распознавание не заработало; обычно снимок делается сам
+    final manual = _hint == FaceHint.manual;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -258,7 +261,7 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
         fit: StackFit.expand,
         children: [
           if (camera != null && camera.value.isInitialized) _Preview(camera: camera),
-          CustomPaint(painter: _OvalMask(ready: ready || _capturing)),
+          CustomPaint(painter: _OvalMask(ready: ready)),
           SafeArea(
             child: Column(
               children: [
@@ -270,13 +273,11 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
                   _Banner(text: _hintText, color: ready ? Brand.green : Colors.black54),
                 const SizedBox(height: 12),
                 _PlaceChip(position: widget.position, office: widget.office),
-                const SizedBox(height: 20),
-                _Shutter(
-                  enabled: canShoot && !_capturing,
-                  busy: _capturing,
-                  onPressed: _capture,
-                ),
-                const SizedBox(height: 24),
+                if (manual) ...[
+                  const SizedBox(height: 20),
+                  _Shutter(enabled: !_capturing, busy: _capturing, onPressed: _capture),
+                ],
+                const SizedBox(height: 32),
               ],
             ),
           ),
@@ -460,7 +461,7 @@ class _PlaceChip extends StatelessWidget {
   }
 }
 
-/// Кнопка затвора: снимок и так делается сам, кнопка — для тех, кто не дождался.
+/// Кнопка затвора — только когда распознавание на этом телефоне не заработало.
 class _Shutter extends StatelessWidget {
   final bool enabled;
   final bool busy;

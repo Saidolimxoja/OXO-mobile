@@ -46,7 +46,7 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
-HududNazorati.apk
+HududNazorati*.apk
 
 # Готовая сборка (build-apk.ps1)
-/HududNazorati.apk
+/HududNazorati*.apk

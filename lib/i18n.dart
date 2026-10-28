@@ -203,6 +203,7 @@ const Map<String, List<String>> _strings = {
   'faceStraight': ['To\'g\'ri qarang', 'Тўғри қаранг', 'Смотрите прямо'],
   'faceEyes': ['Ko\'zlaringizni oching', 'Кўзларингизни очинг', 'Откройте глаза'],
   'faceHold': ['Qimirlamang…', 'Қимирламанг…', 'Не двигайтесь…'],
+  'faceCapturing': ['Suratga olinmoqda…', 'Суратга олинмоқда…', 'Снимаем…'],
   'faceManual': [
     'Yuzingizni ovalga joylab, tugmani bosing',
     'Юзингизни овалга жойлаб, тугмани босинг',
