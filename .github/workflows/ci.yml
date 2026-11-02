@@ -1,0 +1,36 @@
+# Проверка каждого PR и пуша в main: анализатор Dart и тесты.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          # Та же версия, что у сборки APK на рабочей машине
+          flutter-version: 3.47.7
+          cache: true
+
+      - run: flutter pub get
+
+      - name: Анализатор
+        run: flutter analyze
+
+      - name: Тесты
+        run: flutter test

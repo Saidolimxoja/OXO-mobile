@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -29,6 +30,10 @@ class ApiClient {
 
   static const _keyAccess = 'access_token';
   static const _keyRefresh = 'refresh_token';
+
+  /// Токены — в Android Keystore: не читаются другими приложениями и не
+  /// попадают в резервную копию телефона.
+  static const _secure = FlutterSecureStorage();
   static const _timeout = Duration(seconds: 25);
   static const _uploadTimeout = Duration(minutes: 3);
 
@@ -44,22 +49,28 @@ class ApiClient {
   String? get refreshToken => _refresh;
 
   Future<void> load() async {
-    final prefs = await SharedPreferences.getInstance();
-    _access = prefs.getString(_keyAccess);
-    _refresh = prefs.getString(_keyRefresh);
+    _access = await _secure.read(key: _keyAccess);
+    _refresh = await _secure.read(key: _keyRefresh);
+    await _dropPlainTokens();
   }
 
   Future<void> saveTokens(String access, String refresh) async {
     _access = access;
     _refresh = refresh;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_keyAccess, access);
-    await prefs.setString(_keyRefresh, refresh);
+    await _secure.write(key: _keyAccess, value: access);
+    await _secure.write(key: _keyRefresh, value: refresh);
   }
 
   Future<void> clearTokens() async {
     _access = null;
     _refresh = null;
+    await _secure.delete(key: _keyAccess);
+    await _secure.delete(key: _keyRefresh);
+  }
+
+  /// Прежние версии хранили токены открытым текстом в SharedPreferences. Их не
+  /// переносим: сервер больше не принимает токены без сессии, вход нужен заново.
+  Future<void> _dropPlainTokens() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_keyAccess);
     await prefs.remove(_keyRefresh);

@@ -1,7 +1,4 @@
-import 'dart:io';
-
 import 'package:geolocator/geolocator.dart';
-import 'package:image_picker/image_picker.dart';
 
 import '../i18n.dart';
 import 'location_service.dart';
@@ -15,12 +12,11 @@ class CheckInException implements Exception {
   String toString() => message;
 }
 
-/// Сервис отметки прихода: получение свежей точки GPS и селфи с фронтальной камеры.
+/// Сервис отметки прихода: свежая точка GPS (селфи снимает FaceCaptureScreen).
 class CheckInService {
   CheckInService._();
 
   static const _fixTimeout = Duration(seconds: 25);
-  static final _picker = ImagePicker();
 
   static String problemText(LocationProblem p) => switch (p) {
         LocationProblem.serviceOff => t('gpsOff'),
@@ -49,19 +45,5 @@ class CheckInService {
     } catch (_) {
       throw CheckInException(t('gpsUnavailable'));
     }
-  }
-
-  /// Селфи с фронтальной камеры. При отмене возвращает null.
-  static Future<File?> pickFrontSelfie() async {
-    final picked = await _picker.pickImage(
-      source: ImageSource.camera,
-      preferredCameraDevice: CameraDevice.front,
-      maxWidth: 1080,
-      imageQuality: 80,
-    );
-
-    if (picked == null) return null;
-
-    return File(picked.path);
   }
 }

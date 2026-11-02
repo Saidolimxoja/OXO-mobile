@@ -3,8 +3,8 @@ import 'settings.dart';
 
 /// Каждая строка: [ўзбекча лотин, ўзбекча кирилл, русский].
 const Map<String, List<String>> _strings = {
-  'appName': ['OXO', 'OXO', 'OXO'],
-  'appSub': ['Ishlar hisoboti', 'Ишлар ҳисоботи', 'Отчёт о работах'],
+  'appName': ['Hudud Nazorati', 'Ҳудуд назорати', 'Худуд назорати'],
+  'appSub': ['Davomat va ishlar hisoboti', 'Давомат ва ишлар ҳисоботи', 'Посещаемость и отчёт о работах'],
   'cancel': ['Bekor qilish', 'Бекор қилиш', 'Отмена'],
   'retry': ['Qayta urinish', 'Қайта уриниш', 'Повторить'],
   'yes': ['Ha', 'Ҳа', 'Да'],
@@ -125,9 +125,9 @@ const Map<String, List<String>> _strings = {
     'Нет разрешения на геолокацию',
   ],
   'gpsDeniedForever': [
-    'Joylashuv ruxsati yopilgan. Telefon sozlamalaridan OXO ilovasiga ruxsat bering.',
-    'Жойлашув рухсати ёпилган. Телефон созламаларидан OXO иловасига рухсат беринг.',
-    'Доступ к геолокации запрещён. Разрешите его приложению OXO в настройках телефона.',
+    'Joylashuv ruxsati yopilgan. Telefon sozlamalaridan «Hudud Nazorati» ilovasiga ruxsat bering.',
+    'Жойлашув рухсати ёпилган. Телефон созламаларидан «Ҳудуд назорати» иловасига рухсат беринг.',
+    'Доступ к геолокации запрещён. Разрешите его приложению «Худуд назорати» в настройках телефона.',
   ],
   'gpsUnavailable': [
     'Joylashuvni aniqlab bo\'lmadi. Ochiq joyga chiqing.',
@@ -152,7 +152,6 @@ const Map<String, List<String>> _strings = {
   'checkIn': ['Keldim', 'Келдим', 'Пришёл'],
   'checkInBtn': ['KELDIM', 'КЕЛДИМ', 'ПРИШЁЛ'],
   'checkOut': ['Ketdim', 'Кетдим', 'Ушёл'],
-  'checkOutBtn': ['KETDIM', 'КЕТДИМ', 'УШЁЛ'],
   'locatingPlace': ['Joylashuv aniqlanmoqda…', 'Жойлашув аниқланмоқда…', 'Определение местоположения…'],
   'sending': ['Yuborilmoqda…', 'Юборилмоқда…', 'Отправка…'],
   'holidayToday': ['Bugun dam olish kuni', 'Бугун дам олиш куни', 'Сегодня выходной'],
@@ -162,10 +161,10 @@ const Map<String, List<String>> _strings = {
     'Иш {start} да бошланади · кечикиш {tolerance} дақиқадан кейин',
     'Работа начинается в {start} · опоздание после {tolerance} минут',
   ],
-  'noOfficeLocation': [
-    'Ish joyi manzili belgilanmagan — masofa tekshirilmaydi',
-    'Иш жойи манзили белгиланмаган — масофа текширилмайди',
-    'Адрес рабочего места не указан — расстояние не проверяется',
+  'checkInChecks': [
+    'Yuz va joylashuv tekshiriladi',
+    'Юз ва жойлашув текширилади',
+    'Проверяются лицо и местоположение',
   ],
   'checkedInOnTime': ['Keldim {time}', 'Келдим {time}', 'Пришёл {time}'],
   'checkedInLate': [
@@ -178,16 +177,101 @@ const Map<String, List<String>> _strings = {
   'inBuilding': ['Binoda', 'Бинода', 'В здании'],
   'hoursShort': ['soat', 'соат', 'ч'],
   'minutesShort': ['daqiqa', 'дақиқа', 'мин'],
-  'checkOutConfirm': [
-    'Ish vaqti 18:00 da tugaydi. Hozir ketyapsizmi?',
-    'Иш вақти 18:00 да тугайди. Ҳозир кетяпсизми?',
-    'Рабочее время заканчивается в 18:00. Уходите сейчас?',
-  ],
   'earlyDeparture': ['erta ketdi', 'эрта кетди', 'ранний уход'],
   'distanceLabel': ['Masofa', 'Масофа', 'Расстояние'],
   'metersUnit': ['m', 'м', 'м'],
   'checkInSuccess': ['Kelish qayd etildi', 'Келиш қайд этилди', 'Приход зафиксирован'],
-  'checkOutSuccess': ['Ketish qayd etildi', 'Кетиш қайд этилди', 'Уход зафиксирован'],
+  // камера «Келдим»: лицо в овале
+  'selfieTitle': ['Selfi', 'Селфи', 'Селфи'],
+  'selfieSub': [
+    'Yuzingiz ramka ichida va yaxshi yoritilgan bo\'lsin.',
+    'Юзингиз рамка ичида ва яхши ёритилган бўлсин.',
+    'Лицо в рамке и хорошо освещено.',
+  ],
+  'takeSelfie': ['Suratga olish', 'Суратга олиш', 'Сделать снимок'],
+  'cameraUnavailable': [
+    'Kamera ochilmadi. Ilovaga kamera ruxsatini bering.',
+    'Камера очилмади. Иловага камера рухсатини беринг.',
+    'Камера не открылась. Разрешите приложению доступ к камере.',
+  ],
+  'faceStarting': ['Kamera ochilmoqda…', 'Камера очилмоқда…', 'Открываем камеру…'],
+  'faceNotFound': ['Yuzingizni ramkaga oling', 'Юзингизни рамкага олинг', 'Поместите лицо в рамку'],
+  'faceOnlyOne': ['Kadrda faqat siz bo\'ling', 'Кадрда фақат сиз бўлинг', 'В кадре должны быть только вы'],
+  'faceCloser': ['Yaqinroq keling', 'Яқинроқ келинг', 'Поднесите телефон ближе'],
+  'faceFarther': ['Biroz uzoqroq tuting', 'Бироз узоқроқ тутинг', 'Отодвиньте телефон'],
+  'faceCenter': ['Yuzni ramka markaziga oling', 'Юзни рамка марказига олинг', 'Держите лицо по центру'],
+  'faceStraight': ['To\'g\'ri qarang', 'Тўғри қаранг', 'Смотрите прямо'],
+  'faceBlink': ['Ko\'zingizni yumib-oching', 'Кўзингизни юмиб-очинг', 'Моргните'],
+  'faceEyes': ['Ko\'zlaringizni oching', 'Кўзларингизни очинг', 'Откройте глаза'],
+  'faceHold': ['Qimirlamang…', 'Қимирламанг…', 'Не двигайтесь…'],
+  'faceCapturing': ['Suratga olinmoqda…', 'Суратга олинмоқда…', 'Снимаем…'],
+  'faceManual': [
+    'Yuzingizni ovalga joylab, tugmani bosing',
+    'Юзингизни овалга жойлаб, тугмани босинг',
+    'Поместите лицо в овал и нажмите кнопку',
+  ],
+  'checkInReminder': [
+    'Bugun «Keldim» belgilanmagan — yuzingizni ovalga oling',
+    'Бугун «Келдим» белгиланмаган — юзингизни овалга олинг',
+    'Сегодня приход не отмечен — поместите лицо в овал',
+  ],
+  'checkInOnlyAtOffice': [
+    'Keldim faqat ish joyida belgilanadi',
+    'Келдим фақат иш жойида белгиланади',
+    'Приход отмечается только на рабочем месте',
+  ],
+  'gpsMocked': [
+    'Soxta joylashuv (Fake GPS) yoqilgan — o\'chiring',
+    'Сохта жойлашув (Fake GPS) ёқилган — ўчиринг',
+    'Включена подмена GPS (Fake GPS) — выключите её',
+  ],
+  'gpsLowAccuracy': [
+    'GPS aniqligi past — derazaga yoki ochiq joyga yaqinlashing',
+    'GPS аниқлиги паст — деразага ёки очиқ жойга яқинлашинг',
+    'GPS неточный — подойдите к окну или выйдите на открытое место',
+  ],
+  'nearOffice': ['Ofisdasiz', 'Офисдасиз', 'Вы в офисе'],
+  'farFromOffice': ['Ofisdan {m} m uzoqda', 'Офисдан {m} м узоқда', 'До офиса {m} м'],
+
+  // причины отказа «Келдим» по коду сервера
+  'err_outside': ['Siz ish joyingizdan uzoqdasiz', 'Сиз иш жойингиздан узоқдасиз', 'Вы далеко от рабочего места'],
+  'err_no_office': [
+    'Ish joyingiz belgilanmagan, kadrga murojaat qiling',
+    'Иш жойингиз белгиланмаган, кадрга мурожаат қилинг',
+    'Место работы не указано, обратитесь в отдел кадров',
+  ],
+  'err_no_face_photo': [
+    'Fotongiz kiritilmagan, kadrga murojaat qiling',
+    'Фотонгиз киритилмаган, кадрга мурожаат қилинг',
+    'Ваше фото не загружено, обратитесь в отдел кадров',
+  ],
+  'err_face_photo_bad': [
+    'Anketadagi fotoda yuz aniqlanmadi, kadrga murojaat qiling',
+    'Анкетадаги фотода юз аниқланмади, кадрга мурожаат қилинг',
+    'На фото в анкете не найдено лицо, обратитесь в отдел кадров',
+  ],
+  'err_no_face': [
+    'Yuzingiz aniqlanmadi. Yuzni ramka ichiga olib, qayta urinib ko\'ring',
+    'Юзингиз аниқланмади. Юзни рамка ичига олиб, қайта уриниб кўринг',
+    'Лицо не найдено. Поместите лицо в рамку и попробуйте снова',
+  ],
+  'err_many_faces': [
+    'Kadrda bir nechta yuz bor. Yolg\'iz turib, qayta urinib ko\'ring',
+    'Кадрда бир нечта юз бор. Ёлғиз туриб, қайта уриниб кўринг',
+    'В кадре несколько лиц. Встаньте один и попробуйте снова',
+  ],
+  'err_face_mismatch': ['Yuz mos kelmadi: bu siz emassiz', 'Юз мос келмади: бу сиз эмассиз', 'Лицо не совпало: это не вы'],
+  'err_face_unavailable': [
+    'Yuzni tekshirish vaqtincha ishlamayapti, birozdan so\'ng urinib ko\'ring',
+    'Юзни текшириш вақтинча ишламаяпти, бироздан сўнг уриниб кўринг',
+    'Проверка лица временно недоступна, попробуйте позже',
+  ],
+  'err_update_required': [
+    'Ilovani yangilang: eski versiya bilan keldim belgilanmaydi',
+    'Иловани янгиланг: эски версия билан келдим белгиланмайди',
+    'Обновите приложение: старая версия не отмечает приход',
+  ],
+
   'notCheckedInToday': ['Bugun kelmagan', 'Бугун келмаган', 'Сегодня не пришёл'],
   'monthSummary': ['Oylik xulosa', 'Ойлик хулоса', 'Сводка за месяц'],
   'summaryPresent': ['Kelgan kunlar', 'Келган кунлар', 'Пришёл'],
@@ -216,6 +300,14 @@ const Map<String, List<String>> _strings = {
   'reason_family': ['Oilaviy sabab', 'Оилавий сабаб', 'Семейные обстоятельства'],
   'reason_other': ['Boshqa', 'Бошқа', 'Другое'],
 };
+
+/// Текст отказа «Келдим» на языке приложения по коду сервера; null — код незнакомый.
+/// Для «outside» расстояние дописывает вызывающий.
+String? checkInErrorText(String code) {
+  final key = 'err_$code';
+
+  return _strings.containsKey(key) && code != 'outside' ? t(key) : null;
+}
 
 String attendanceReasonText(String code) {
   final key = 'reason_$code';

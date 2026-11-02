@@ -10,18 +10,26 @@ import '../config.dart';
 
 /// Трек и сигналы «на связи» в рабочее время.
 ///
-/// Работает как foreground-сервис Android (постоянное уведомление), поэтому
-/// продолжает писать точки, когда приложение свёрнуто. В нерабочее время,
-/// в выходные и праздники ничего не собирает и не отправляет — сервер такие
-/// точки всё равно отбросит. Без интернета сэмплы копятся и уходят позже.
+/// Точки пишутся строго 09:00–18:00 рабочего дня, остальное время не нужно ни
+/// Давомату, ни Ишлар ҳисоботи. GPS работает как foreground-сервис Android
+/// (постоянное уведомление) и продолжает писать, когда приложение свёрнуто.
+///
+/// Запустить сервис геолокации Android разрешает только из открытого приложения,
+/// поэтому GPS включается при входе и при возврате в приложение (обычно это
+/// «Келдим» утром) и сам выключается в 18:00 и в нерабочий день. Без интернета
+/// сэмплы копятся на телефоне и уходят позже.
 class TrackService extends ChangeNotifier {
   TrackService._();
   static final TrackService instance = TrackService._();
 
   static const _keyBuffer = 'track_buffer';
 
-  /// Рабочий ли сегодня день — по календарю сервера (праздники).
+  /// Рабочий ли день [_day] — по календарю сервера (праздники).
   bool workingDay = false;
+  String? _day;
+
+  /// Есть разрешение на геолокацию и трек ведётся (может ждать рабочего времени).
+  bool enabled = false;
 
   bool get running => _positions != null;
   DateTime? lastSentAt;
@@ -29,7 +37,7 @@ class TrackService extends ChangeNotifier {
   int pending = 0;
 
   StreamSubscription<Position>? _positions;
-  Timer? _pingTimer;
+  Timer? _clock;
   Timer? _sendTimer;
   bool _sending = false;
   final List<Map<String, dynamic>> _buffer = [];
@@ -39,11 +47,38 @@ class TrackService extends ChangeNotifier {
     return minutes >= AppConfig.workStartMinutes && minutes < AppConfig.workEndMinutes;
   }
 
-  bool get collecting => workingDay && inWorkTime(tashkentNow());
+  bool get _today => _day == ymd(tashkentNow());
 
-  Future<void> start({required bool workingDay}) async {
+  bool get collecting => running && workingDay && _today && inWorkTime(tashkentNow());
+
+  /// GPS нужен до конца рабочего дня: с утра он включается заранее (точки до 09:00
+  /// не пишутся), чтобы в 09:00 трек пошёл, даже если приложение уже свёрнуто.
+  bool get _streamNeeded {
+    final now = tashkentNow();
+
+    return workingDay && _today && now.hour * 60 + now.minute < AppConfig.workEndMinutes;
+  }
+
+  /// Привести трек к дню [date]; вызывается при входе и при каждом возврате в приложение.
+  Future<void> sync({required String date, required bool workingDay}) async {
+    _day = date;
     this.workingDay = workingDay;
+    enabled = true;
     await _restoreBuffer();
+
+    _clock ??= Timer.periodic(AppConfig.pingEvery, (_) => _tick());
+    _sendTimer ??= Timer.periodic(AppConfig.trackSendEvery, (_) => flush());
+
+    if (_streamNeeded) {
+      _startStream();
+    } else {
+      await _stopStream();
+    }
+
+    notifyListeners();
+  }
+
+  void _startStream() {
     if (running) return;
 
     final settings = AndroidSettings(
@@ -51,9 +86,9 @@ class TrackService extends ChangeNotifier {
       distanceFilter: 20,
       intervalDuration: const Duration(minutes: 1),
       foregroundNotificationConfig: const ForegroundNotificationConfig(
-        notificationTitle: 'OXO',
-        notificationText: 'Иш вақтида (09:00–18:00) жойлашув иш ҳисоботига ёзилади',
-        notificationChannelName: 'OXO трек',
+        notificationTitle: 'Ҳудуд назорати',
+        notificationText: 'Иш вақтида (09:00–18:00) жойлашув ёзилади',
+        notificationChannelName: 'Ҳудуд назорати — трек',
         enableWakeLock: true,
         setOngoing: true,
       ),
@@ -63,18 +98,32 @@ class TrackService extends ChangeNotifier {
       _onPosition,
       onError: (_) {},
     );
-    _pingTimer = Timer.periodic(AppConfig.pingEvery, (_) => _ping());
-    _sendTimer = Timer.periodic(AppConfig.trackSendEvery, (_) => flush());
-    notifyListeners();
   }
 
-  Future<void> stop() async {
+  Future<void> _stopStream() async {
     await _positions?.cancel();
     _positions = null;
-    _pingTimer?.cancel();
+  }
+
+  /// Раз в минуту: сигнал «на связи» и выключение GPS после 18:00 или со сменой дня.
+  Future<void> _tick() async {
+    if (collecting) _add({'t': DateTime.now().toUtc().toIso8601String()});
+
+    if (running && !_streamNeeded) {
+      await _stopStream();
+      await flush();
+      notifyListeners();
+    }
+  }
+
+  /// Выход из учётной записи: всё выключить.
+  Future<void> stop() async {
+    await _stopStream();
+    _clock?.cancel();
     _sendTimer?.cancel();
-    _pingTimer = null;
+    _clock = null;
     _sendTimer = null;
+    enabled = false;
     notifyListeners();
   }
 
@@ -91,18 +140,14 @@ class TrackService extends ChangeNotifier {
     });
   }
 
-  /// Сигнал без координат — телефон на связи, даже если GPS не ловит.
-  void _ping() {
-    if (!collecting) return;
-    _add({'t': DateTime.now().toUtc().toIso8601String()});
-  }
-
   void _add(Map<String, dynamic> sample) {
     _buffer.add(sample);
     if (_buffer.length > AppConfig.maxTrackBuffer) {
       _buffer.removeRange(0, _buffer.length - AppConfig.maxTrackBuffer);
     }
     pending = _buffer.length;
+    // Сразу на диск: если система закроет приложение до отправки, точки не пропадут
+    _saveBuffer();
     notifyListeners();
   }
 

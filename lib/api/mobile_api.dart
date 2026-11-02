@@ -2,8 +2,12 @@ import 'dart:io';
 
 import 'package:geolocator/geolocator.dart';
 
+import '../services/client_info.dart';
 import 'api_client.dart';
 import 'models.dart';
+
+/// Как снято селфи «Келдим»: само (лицо в овале, моргнул) или кнопкой.
+enum CaptureMode { auto, manual }
 
 /// Запросы мобильного API OXO — по одному методу на endpoint `/api/mobile/*`.
 class MobileApi {
@@ -83,12 +87,18 @@ class MobileApi {
     return AttendanceToday.fromJson(data);
   }
 
-  Future<AttendanceToday> checkIn(File selfie, Position pos) async {
+  Future<AttendanceToday> checkIn(File selfie, Position pos, CaptureMode mode) async {
+    // Версия нужна серверу, чтобы не принимать «Келдим» от устаревшего приложения
+    final client = await ClientInfo.get();
     final fields = {
       'lat': '${pos.latitude}',
       'lon': '${pos.longitude}',
       'accuracy': '${pos.accuracy.round()}',
       'mock': '${pos.isMocked}',
+      'appVersion': client.appVersion,
+      'captureMode': mode.name,
+      if (client.deviceModel != null) 'deviceModel': client.deviceModel!,
+      if (client.osVersion != null) 'osVersion': client.osVersion!,
     };
     final data = await _api.multipart(
       '/mobile/attendance/check-in',
@@ -99,17 +109,8 @@ class MobileApi {
     return AttendanceToday.fromJson(data);
   }
 
-  Future<AttendanceToday> checkOut([Position? pos]) async {
-    final body = <String, dynamic>{
-      if (pos != null) ...{
-        'lat': pos.latitude,
-        'lon': pos.longitude,
-        'accuracy': pos.accuracy.round(),
-      },
-    };
-    final data = await _api.post('/mobile/attendance/check-out', body) as Map<String, dynamic>;
-    return AttendanceToday.fromJson(data);
-  }
+  /// Отчёт о падении приложения (тело собирает CrashReporter).
+  Future<void> sendCrash(Map<String, dynamic> report) => _api.post('/mobile/crashes', report);
 
   Future<List<AttendanceHistoryDay>> attendanceHistory(String from, String to) async {
     final data = await _api.get(
