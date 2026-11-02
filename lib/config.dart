@@ -26,6 +26,15 @@ class AppConfig {
   static const minJobPhotos = 1;
   static const maxJobPhotos = 4;
 
+  /// «Келдим»: запас к радиусу офиса и худшая точность GPS — как на сервере
+  /// (attendance.rules.ts: CHECK_IN_GPS_MARGIN_M, CHECK_IN_MAX_ACCURACY_M).
+  /// Камера не снимает, пока сервер такую точку всё равно бы отклонил.
+  static const checkInGpsMarginM = 30;
+  static const checkInMaxAccuracyM = 100;
+
+  /// Столько отчётов о падениях ждут отправки на телефоне; старые вытесняются.
+  static const maxCrashQueue = 20;
+
   static bool get configured => apiBaseUrl.isNotEmpty;
 }
 

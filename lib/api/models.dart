@@ -49,12 +49,21 @@ class Me {
   final Office? office;
   final Today today;
 
+  /// Уровень сотрудника: republic, region или district.
+  final String level;
+
+  /// Работы в Ишлар ҳисоботи отправляют только сотрудники туманов — решает сервер.
+  /// Сервер без этого поля (до 1.2.0) работы принимал у всех.
+  final bool canReportWork;
+
   Me.fromJson(Map<String, dynamic> j)
       : employee = Employee.fromJson(j['employee'] as Map<String, dynamic>),
         office = j['department'] == null
             ? null
             : Office.fromJson(j['department'] as Map<String, dynamic>),
-        today = Today.fromJson(j['today'] as Map<String, dynamic>);
+        today = Today.fromJson(j['today'] as Map<String, dynamic>),
+        level = j['level'] as String? ?? 'district',
+        canReportWork = j['canReportWork'] as bool? ?? true;
 }
 
 class CalendarDay {
@@ -313,6 +322,10 @@ class AttendanceToday {
             : null,
         canCheckIn = j['canCheckIn'] as bool? ?? false,
         canCheckOut = j['canCheckOut'] as bool? ?? false;
+
+  /// «Келдим» сегодня ещё можно и нужно отметить: рабочий день, 06:00–18:00 (решает
+  /// сервер в canCheckIn), прихода нет и у бўлима есть точка офиса.
+  bool get needsCheckIn => canCheckIn && checkIn == null && office != null;
 }
 
 class AttendanceHistoryDay {

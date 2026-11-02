@@ -7,20 +7,40 @@ import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 
+import '../api/mobile_api.dart';
 import '../api/models.dart';
+import '../config.dart';
 import '../i18n.dart';
+import '../services/check_in_service.dart';
+import '../services/crash_reporter.dart';
 import '../theme.dart';
 
-/// Что мешает снимку прямо сейчас; [ok] — лицо в овале, можно снимать;
-/// [manual] — распознавание на этом телефоне не заработало, снимок кнопкой.
-enum FaceHint { starting, noFace, manyFaces, closer, farther, center, straight, eyes, ok, manual }
+/// Что с лицом прямо сейчас; [ok] — лицо в овале, человек моргнул, можно снимать.
+enum FaceHint { starting, noFace, manyFaces, closer, farther, center, straight, blink, eyes, ok }
 
-/// Сколько держать лицо ровно, прежде чем снимок сделается сам.
-const _holdStill = Duration(milliseconds: 500);
+/// Селфи и место для «Келдим».
+class CheckInCapture {
+  final File selfie;
+  final Position position;
+  final CaptureMode mode;
 
-/// Если за это время ни один кадр не распознан, камера переходит на снимок
-/// кнопкой: лицо всё равно сверяет сервер, а человек не застревает на экране.
-const _detectTimeout = Duration(seconds: 4);
+  const CheckInCapture(this.selfie, this.position, this.mode);
+}
+
+/// Сколько держать лицо ровно после моргания, прежде чем снимок сделается сам.
+const _holdStill = Duration(milliseconds: 300);
+
+/// Если за это время распознавание не обработало ни одного кадра, появляется кнопка
+/// снимка. Автомат при этом продолжает работать: на медленном телефоне первый кадр
+/// распознаётся поздно, но распознаётся.
+const _detectTimeout = Duration(seconds: 12);
+
+/// Лицо ровно в овале столько, а моргание не распознано (очки, блики) — появляется
+/// кнопка: человек не застревает, а снимок помечается manual и виден кадру.
+const _blinkTimeout = Duration(seconds: 8);
+
+/// Пауза перед новым замером GPS, пока точка не годится для «Келдим».
+const _relocateAfter = Duration(seconds: 3);
 
 /// Второе лицо считается, если оно не меньше этой доли самого крупного — как на сервере.
 const _secondFaceShare = 0.5;
@@ -37,17 +57,22 @@ const _maxCenterY = 0.62;
 /// Поворот головы и наклон, при которых лицо ещё «прямо», градусы.
 const _maxTurnDeg = 15.0;
 
-/// Ниже этой вероятности глаз считается закрытым.
-const _eyeOpenMin = 0.5;
+/// Моргание — простая проверка, что перед камерой живой человек, а не фото:
+/// оба глаза закрыты (ниже первого порога), затем открыты (выше второго).
+const _eyeClosedMax = 0.3;
+const _eyeOpenMin = 0.6;
 
-/// Селфи для «Келдим»: своя камера с овалом, снимок делается сам, когда в
-/// овале одно лицо, оно смотрит прямо и глаза открыты. Галерея не принимается.
-/// Возвращает файл снимка или null, если человек закрыл экран.
+/// Камера «Келдим»: своя камера с овалом, место по GPS определяется параллельно.
+/// Снимок делается сам, когда в овале одно лицо, оно смотрит прямо, человек моргнул
+/// и точка GPS годится (в радиусе офиса, точная, не подменённая). Галерея не принимается.
+/// Возвращает [CheckInCapture] или null, если человек закрыл экран.
 class FaceCaptureScreen extends StatefulWidget {
-  final Position position;
   final AttendanceOffice? office;
 
-  const FaceCaptureScreen({super.key, required this.position, this.office});
+  /// Экран открылся сам при входе: «Келдим» сегодня ещё не отмечен.
+  final bool reminder;
+
+  const FaceCaptureScreen({super.key, this.office, this.reminder = false});
 
   @override
   State<FaceCaptureScreen> createState() => _FaceCaptureScreenState();
@@ -62,21 +87,32 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
 
   FaceHint _hint = FaceHint.starting;
   DateTime? _okSince;
+  DateTime? _alignedSince;
   bool _busy = false;
   bool _capturing = false;
   bool _detected = false;
+  bool _manualAllowed = false;
+  bool _detectErrorReported = false;
+  bool _eyesClosedSeen = false;
+  bool _blinked = false;
   Timer? _detectWatch;
-  String? _error;
+  String? _cameraError;
+
+  bool _alive = true;
+  Position? _position;
+  String? _gpsError;
 
   @override
   void initState() {
     super.initState();
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     _start();
+    _locate();
   }
 
   @override
   void dispose() {
+    _alive = false;
     SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     _detectWatch?.cancel();
     _camera?.dispose();
@@ -107,22 +143,63 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
       _lens = lens;
       setState(() => _camera = camera);
       await camera.startImageStream(_onFrame);
-      _detectWatch = Timer(_detectTimeout, _fallBackToManual);
-    } catch (_) {
-      if (mounted) setState(() => _error = t('cameraUnavailable'));
+      _detectWatch = Timer(_detectTimeout, _allowManual);
+    } catch (e, stack) {
+      CrashReporter.record(e, stack);
+      if (mounted) setState(() => _cameraError = t('cameraUnavailable'));
     }
   }
 
-  Future<void> _fallBackToManual() async {
-    final camera = _camera;
-    if (_detected || !mounted || camera == null) return;
+  void _allowManual() {
+    if (_detected || !mounted) return;
 
-    setState(() => _hint = FaceHint.manual);
-    if (camera.value.isStreamingImages) await camera.stopImageStream();
+    setState(() => _manualAllowed = true);
   }
 
+  /// Точка GPS для «Келдим»; пока она не годится, замер повторяется — человек
+  /// может дойти до офиса или выйти к окну, не закрывая камеру.
+  Future<void> _locate() async {
+    setState(() => _gpsError = null);
+
+    while (_alive && !_capturing) {
+      try {
+        final position = await CheckInService.getFreshPosition();
+        if (!_alive) return;
+
+        setState(() => _position = position);
+        if (_placeReady) return;
+      } on CheckInException catch (e) {
+        if (_alive) setState(() => _gpsError = e.message);
+        return;
+      }
+
+      await Future<void>.delayed(_relocateAfter);
+    }
+  }
+
+  int? get _distanceM {
+    final position = _position;
+    final office = widget.office;
+    if (position == null || office == null) return null;
+
+    return Geolocator.distanceBetween(position.latitude, position.longitude, office.lat, office.lon).round();
+  }
+
+  bool get _farFromOffice {
+    final distance = _distanceM;
+    final office = widget.office;
+
+    return distance != null && office != null && distance > office.radiusM + AppConfig.checkInGpsMarginM;
+  }
+
+  bool get _lowAccuracy => (_position?.accuracy ?? 0) > AppConfig.checkInMaxAccuracyM;
+
+  /// Сервер такую точку примет: есть, не подменена, точная и у офиса.
+  bool get _placeReady =>
+      _position != null && !_position!.isMocked && !_lowAccuracy && !_farFromOffice;
+
   Future<void> _onFrame(CameraImage frame) async {
-    if (_busy || _capturing || _hint == FaceHint.manual) return;
+    if (_busy || _capturing) return;
     _busy = true;
 
     try {
@@ -137,16 +214,29 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
 
       if (!mounted) return;
 
-      setState(() => _hint = hint);
+      final aligned = hint == FaceHint.blink || hint == FaceHint.eyes || hint == FaceHint.ok;
 
-      if (hint == FaceHint.ok) {
+      _alignedSince = aligned ? (_alignedSince ?? DateTime.now()) : null;
+      setState(() {
+        _hint = hint;
+        if (hint == FaceHint.blink && DateTime.now().difference(_alignedSince!) >= _blinkTimeout) {
+          _manualAllowed = true;
+        }
+      });
+
+      if (hint == FaceHint.ok && _placeReady) {
         _okSince ??= DateTime.now();
-        if (DateTime.now().difference(_okSince!) >= _holdStill) await _capture();
+        if (DateTime.now().difference(_okSince!) >= _holdStill) await _capture(CaptureMode.auto);
       } else {
         _okSince = null;
       }
-    } catch (_) {
-      // Пропущенный кадр не страшен: следующий придёт через доли секунды
+    } catch (e, stack) {
+      // Пропущенный кадр не страшен, но если распознавание падает на этом телефоне,
+      // автоснимок здесь не работает — о первой такой ошибке узнаём из отчёта
+      if (!_detectErrorReported) {
+        _detectErrorReported = true;
+        CrashReporter.record(e, stack);
+      }
     } finally {
       _busy = false;
     }
@@ -182,12 +272,18 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
   }
 
   FaceHint _judge(List<Face> faces, Size upright) {
-    if (faces.isEmpty) return FaceHint.noFace;
+    final main = faces.isEmpty
+        ? null
+        : faces.reduce((a, b) => a.boundingBox.height >= b.boundingBox.height ? a : b);
+    final crowd = main != null &&
+        faces.where((f) => f.boundingBox.height >= main.boundingBox.height * _secondFaceShare).length > 1;
 
-    final main = faces.reduce((a, b) => a.boundingBox.height >= b.boundingBox.height ? a : b);
-    final big = faces.where((f) => f.boundingBox.height >= main.boundingBox.height * _secondFaceShare);
-
-    if (big.length > 1) return FaceHint.manyFaces;
+    // Лицо ушло из кадра или появилось второе — моргание засчитывается заново
+    if (main == null || crowd) {
+      _eyesClosedSeen = false;
+      _blinked = false;
+      return main == null ? FaceHint.noFace : FaceHint.manyFaces;
+    }
 
     final box = main.boundingBox;
     final width = box.width / upright.width;
@@ -204,17 +300,30 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
       return FaceHint.straight;
     }
 
-    final left = main.leftEyeOpenProbability;
-    final right = main.rightEyeOpenProbability;
-
-    if ((left != null && left < _eyeOpenMin) || (right != null && right < _eyeOpenMin)) return FaceHint.eyes;
-
-    return FaceHint.ok;
+    return _eyes(main.leftEyeOpenProbability, main.rightEyeOpenProbability);
   }
 
-  Future<void> _capture() async {
+  FaceHint _eyes(double? left, double? right) {
+    // Глаза на этом телефоне не распознаются — моргание не проверить, сверку лица делает сервер
+    if (left == null || right == null) return FaceHint.ok;
+
+    final closed = left < _eyeClosedMax && right < _eyeClosedMax;
+    final open = left > _eyeOpenMin && right > _eyeOpenMin;
+
+    if (!_blinked) {
+      if (closed) _eyesClosedSeen = true;
+      if (open && _eyesClosedSeen) _blinked = true;
+
+      return _blinked ? FaceHint.ok : FaceHint.blink;
+    }
+
+    return open ? FaceHint.ok : FaceHint.eyes;
+  }
+
+  Future<void> _capture(CaptureMode mode) async {
     final camera = _camera;
-    if (camera == null || _capturing) return;
+    final position = _position;
+    if (camera == null || position == null || _capturing) return;
 
     setState(() => _capturing = true);
 
@@ -222,38 +331,53 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
       if (camera.value.isStreamingImages) await camera.stopImageStream();
       final shot = await camera.takePicture();
       HapticFeedback.mediumImpact();
-      if (mounted) Navigator.of(context).pop(File(shot.path));
-    } catch (_) {
+      if (mounted) Navigator.of(context).pop(CheckInCapture(File(shot.path), position, mode));
+    } catch (e, stack) {
+      CrashReporter.record(e, stack);
       if (!mounted) return;
       setState(() {
         _capturing = false;
         _okSince = null;
       });
-      if (_hint != FaceHint.manual) await camera.startImageStream(_onFrame);
+      await camera.startImageStream(_onFrame);
     }
   }
 
-  String get _hintText => _capturing
-      ? t('faceCapturing')
-      : switch (_hint) {
-        FaceHint.starting => t('faceStarting'),
-        FaceHint.noFace => t('faceNotFound'),
-        FaceHint.manyFaces => t('faceOnlyOne'),
-        FaceHint.closer => t('faceCloser'),
-        FaceHint.farther => t('faceFarther'),
-        FaceHint.center => t('faceCenter'),
-        FaceHint.straight => t('faceStraight'),
-        FaceHint.eyes => t('faceEyes'),
-        FaceHint.ok => t('faceHold'),
-        FaceHint.manual => t('faceManual'),
-      };
+  /// Что мешает «Келдим» прямо сейчас. Место важнее лица: у дома моргать бесполезно.
+  (String, Color) get _banner {
+    if (_cameraError != null) return (_cameraError!, Brand.red);
+    if (_capturing) return (t('faceCapturing'), Brand.green);
+    if (_gpsError != null) return (_gpsError!, Brand.red);
+    if (_position?.isMocked ?? false) return (t('gpsMocked'), Brand.red);
+    if (_farFromOffice) return (t('checkInOnlyAtOffice'), Brand.amber);
+
+    final faceReady = _hint == FaceHint.ok;
+
+    if (faceReady && _position == null) return (t('locatingPlace'), Colors.black54);
+    if (faceReady && _lowAccuracy) return (t('gpsLowAccuracy'), Brand.amber);
+    if (_manualAllowed && !_detected) return (t('faceManual'), Colors.black54);
+
+    final text = switch (_hint) {
+      FaceHint.starting => t('faceStarting'),
+      FaceHint.noFace => t('faceNotFound'),
+      FaceHint.manyFaces => t('faceOnlyOne'),
+      FaceHint.closer => t('faceCloser'),
+      FaceHint.farther => t('faceFarther'),
+      FaceHint.center => t('faceCenter'),
+      FaceHint.straight => t('faceStraight'),
+      FaceHint.blink => t('faceBlink'),
+      FaceHint.eyes => t('faceEyes'),
+      FaceHint.ok => t('faceHold'),
+    };
+
+    return (text, faceReady ? Brand.green : Colors.black54);
+  }
 
   @override
   Widget build(BuildContext context) {
     final camera = _camera;
-    final ready = _hint == FaceHint.ok || _capturing;
-    // Кнопка только на телефонах, где распознавание не заработало; обычно снимок делается сам
-    final manual = _hint == FaceHint.manual;
+    final ready = (_hint == FaceHint.ok && _placeReady) || _capturing;
+    final (bannerText, bannerColor) = _banner;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -266,16 +390,30 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
             child: Column(
               children: [
                 _TopBar(onClose: () => Navigator.of(context).pop()),
+                if (widget.reminder) ...[
+                  const SizedBox(height: 10),
+                  _Reminder(text: t('checkInReminder')),
+                ],
                 const Spacer(),
-                if (_error != null)
-                  _Banner(text: _error!, color: Brand.red)
-                else
-                  _Banner(text: _hintText, color: ready ? Brand.green : Colors.black54),
+                _Banner(text: bannerText, color: bannerColor),
                 const SizedBox(height: 12),
-                _PlaceChip(position: widget.position, office: widget.office),
-                if (manual) ...[
+                _PlaceChip(position: _position, distanceM: _distanceM, office: widget.office),
+                if (_gpsError != null) ...[
+                  const SizedBox(height: 10),
+                  TextButton.icon(
+                    onPressed: _locate,
+                    icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+                    label: Text(t('retry'), style: const TextStyle(color: Colors.white)),
+                  ),
+                ],
+                // Запасная кнопка — только где распознавание или моргание не сработало; обычно снимок делается сам
+                if (_manualAllowed) ...[
                   const SizedBox(height: 20),
-                  _Shutter(enabled: !_capturing, busy: _capturing, onPressed: _capture),
+                  _Shutter(
+                    enabled: !_capturing && _placeReady,
+                    busy: _capturing,
+                    onPressed: () => _capture(CaptureMode.manual),
+                  ),
                 ],
                 const SizedBox(height: 32),
               ],
@@ -390,6 +528,34 @@ class _TopBar extends StatelessWidget {
   }
 }
 
+/// Почему камера открылась сама: «Келдим» сегодня ещё не отмечен.
+class _Reminder extends StatelessWidget {
+  final String text;
+
+  const _Reminder({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(color: Brand.amber.withValues(alpha: 0.92), borderRadius: BorderRadius.circular(12)),
+      child: Row(
+        children: [
+          const Icon(Icons.notifications_active_rounded, color: Colors.white, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(color: Colors.white, fontSize: 14.5, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Подсказка над кнопкой: что поправить, чтобы снимок сделался.
 class _Banner extends StatelessWidget {
   final String text;
@@ -413,25 +579,30 @@ class _Banner extends StatelessWidget {
   }
 }
 
-/// Где человек относительно офиса: «Объект ёнидасиз · 10 м · GPS ±4 м».
+/// Где человек относительно офиса: «Офисдасиз · 10 м · GPS ±4 м».
 class _PlaceChip extends StatelessWidget {
-  final Position position;
+  final Position? position;
+  final int? distanceM;
   final AttendanceOffice? office;
 
-  const _PlaceChip({required this.position, required this.office});
+  const _PlaceChip({required this.position, required this.distanceM, required this.office});
 
   @override
   Widget build(BuildContext context) {
+    final position = this.position;
     final office = this.office;
+    final distance = distanceM;
+
+    if (position == null) return _chip(Icons.location_searching_rounded, t('locatingPlace'), Colors.white24);
+
     final accuracy = 'GPS ±${position.accuracy.round()} ${t('metersUnit')}';
 
-    if (office == null) return _chip(Icons.location_on_outlined, accuracy, Colors.white24);
+    if (office == null || distance == null) return _chip(Icons.location_on_outlined, accuracy, Colors.white24);
 
-    final meters = Geolocator.distanceBetween(position.latitude, position.longitude, office.lat, office.lon).round();
-    final near = meters <= office.radiusM;
+    final near = distance <= office.radiusM + AppConfig.checkInGpsMarginM;
     final text = near
-        ? '${t('nearOffice')} · $meters ${t('metersUnit')} · $accuracy'
-        : '${t('farFromOffice').replaceAll('{m}', '$meters')} · $accuracy';
+        ? '${t('nearOffice')} · $distance ${t('metersUnit')} · $accuracy'
+        : '${t('farFromOffice').replaceAll('{m}', '$distance')} · $accuracy';
 
     return _chip(
       near ? Icons.check_circle_rounded : Icons.location_off_rounded,
@@ -461,7 +632,7 @@ class _PlaceChip extends StatelessWidget {
   }
 }
 
-/// Кнопка затвора — только когда распознавание на этом телефоне не заработало.
+/// Кнопка затвора — только когда автоснимок на этом телефоне или у этого человека не сработал.
 class _Shutter extends StatelessWidget {
   final bool enabled;
   final bool busy;

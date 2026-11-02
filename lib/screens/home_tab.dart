@@ -36,19 +36,20 @@ class HomeTabState extends State<HomeTab> {
 
   Future<void> reload() async {
     final today = ymd(tashkentNow());
+    final reportsWork = Session.instance.reportsWork;
     setState(() => _error = null);
     try {
       final api = MobileApi.instance;
-      final results = await Future.wait([
-        api.stats(today),
-        api.jobs(today),
+      final results = await Future.wait<Object>([
         api.attendanceToday(),
+        if (reportsWork) api.stats(today),
+        if (reportsWork) api.jobs(today),
       ]);
       if (!mounted) return;
       setState(() {
-        _stats = results[0] as Stats;
-        _jobs = results[1] as List<Job>;
-        _attendance = results[2] as AttendanceToday;
+        _attendance = results[0] as AttendanceToday;
+        _stats = reportsWork ? results[1] as Stats : null;
+        _jobs = reportsWork ? results[2] as List<Job> : [];
         _loading = false;
       });
     } catch (e) {
@@ -71,6 +72,7 @@ class HomeTabState extends State<HomeTab> {
   @override
   Widget build(BuildContext context) {
     final me = Session.instance.me;
+    final reportsWork = Session.instance.reportsWork;
     final tone = Tone.of(context);
 
     return RefreshIndicator(
@@ -95,17 +97,20 @@ class HomeTabState extends State<HomeTab> {
             AppCard(child: Text(_error!, style: const TextStyle(color: Brand.red)))
           else if (_stats != null)
             _statsCard(_stats!, tone),
-          const SizedBox(height: 16),
-          GradientButton(label: t('addJob'), icon: Icons.add_rounded, onPressed: _addJob),
-          const SizedBox(height: 22),
-          SectionTitle(t('todayJobs')),
-          if (!_loading && _jobs.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 18),
-              child: Center(child: Text(t('noJobs'), style: TextStyle(color: tone.muted))),
-            ),
-          for (final job in _jobs)
-            Padding(padding: const EdgeInsets.only(bottom: 10), child: JobTile(job: job)),
+          // Ишлар ҳисоботи — только у сотрудников туманов; у вилоята и республики главная — Давомат
+          if (reportsWork) ...[
+            const SizedBox(height: 16),
+            GradientButton(label: t('addJob'), icon: Icons.add_rounded, onPressed: _addJob),
+            const SizedBox(height: 22),
+            SectionTitle(t('todayJobs')),
+            if (!_loading && _jobs.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 18),
+                child: Center(child: Text(t('noJobs'), style: TextStyle(color: tone.muted))),
+              ),
+            for (final job in _jobs)
+              Padding(padding: const EdgeInsets.only(bottom: 10), child: JobTile(job: job)),
+          ],
         ],
       ),
     );
@@ -229,7 +234,7 @@ class _TrackStatus extends StatelessWidget {
       animation: track,
       builder: (context, _) {
         final tone = Tone.of(context);
-        final (icon, color, text) = !track.running
+        final (icon, color, text) = !track.enabled
             ? (Icons.location_off_rounded, Brand.red, t('trackOff'))
             : track.collecting
                 ? (Icons.my_location_rounded, Brand.green, t('trackOn'))

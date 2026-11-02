@@ -1,15 +1,9 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 
-import '../api/api_client.dart';
-import '../api/mobile_api.dart';
 import '../api/models.dart';
 import '../i18n.dart';
-import '../screens/face_capture_screen.dart';
-import '../services/check_in_service.dart';
 import '../theme.dart';
-import 'feedback.dart';
+import 'check_in_flow.dart';
 
 /// Карточка Давомата на главной: статус дня и отметка «Келдим» с проверкой лица.
 /// Уход отдельно не отмечается: день покрывает трек 09:00–18:00.
@@ -29,104 +23,16 @@ class AttendanceCard extends StatefulWidget {
 
 class _AttendanceCardState extends State<AttendanceCard> {
   bool _loading = false;
-  String? _stepMessage;
 
   Future<void> _onCheckIn() async {
-    setState(() {
-      _loading = true;
-      _stepMessage = t('locatingPlace');
-    });
+    setState(() => _loading = true);
 
-    try {
-      final pos = await CheckInService.getFreshPosition();
-      if (!mounted) return;
+    await runCheckIn(context, widget.today);
+    if (!mounted) return;
 
-      setState(() {
-        _stepMessage = null;
-      });
-
-      final selfie = await Navigator.of(context).push<File>(
-        MaterialPageRoute(
-          fullscreenDialog: true,
-          builder: (_) => FaceCaptureScreen(position: pos, office: widget.today.office),
-        ),
-      );
-      if (selfie == null) {
-        if (mounted) {
-          setState(() {
-            _loading = false;
-            _stepMessage = null;
-          });
-        }
-        return;
-      }
-
-      if (!mounted) return;
-
-      setState(() {
-        _loading = true;
-        _stepMessage = t('sending');
-      });
-
-      await MobileApi.instance.checkIn(selfie, pos);
-      if (!mounted) return;
-
-      showOk(context, t('checkInSuccess'));
-      await widget.onChanged();
-    } catch (e) {
-      if (!mounted) return;
-
-      await _showErrorDialog(e);
-      if (mounted) {
-        await widget.onChanged();
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _loading = false;
-          _stepMessage = null;
-        });
-      }
-    }
-  }
-
-  Future<void> _showErrorDialog(Object e) async {
-    String message;
-
-    if (e is ApiException) {
-      final known = e.code == null ? null : checkInErrorText(e.code!);
-
-      if (e.message == 'network') {
-        message = t('networkError');
-      } else if (known != null) {
-        message = known;
-      } else if (e.code == 'outside' && e.distanceM != null) {
-        if (!e.message.contains('${e.distanceM}')) {
-          message = '${e.message}\n${t('distanceLabel')}: ${e.distanceM} ${t('metersUnit')}';
-        } else {
-          message = e.message;
-        }
-      } else {
-        message = e.message;
-      }
-    } else if (e is CheckInException) {
-      message = e.message;
-    } else {
-      message = e.toString();
-    }
-
-    await showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        content: Text(message, style: const TextStyle(fontSize: 15)),
-        actions: [
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
+    setState(() => _loading = false);
+    // И после отказа: день мог смениться, а приход — отметиться с другой попытки
+    await widget.onChanged();
   }
 
   String _formatPairs(List<AttendancePair> pairs) {
@@ -168,28 +74,6 @@ class _AttendanceCardState extends State<AttendanceCard> {
             _buildBeforeCheckIn(tone, today)
           else
             _buildAfterCheckIn(tone, today),
-          if (_loading && _stepMessage != null) ...[
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  _stepMessage!,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: tone.muted,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ],
         ],
       ),
     );

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'api/api_client.dart';
 import 'screens/login_screen.dart';
 import 'screens/main_shell.dart';
+import 'services/crash_reporter.dart';
 import 'settings.dart';
 import 'theme.dart';
 
@@ -10,6 +11,8 @@ final navigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Первым делом: ошибка при запуске — тоже отчёт
+  CrashReporter.install();
   await AppSettings.instance.load();
   await ApiClient.instance.load();
 

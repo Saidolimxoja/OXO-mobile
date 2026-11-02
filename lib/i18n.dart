@@ -4,7 +4,7 @@ import 'settings.dart';
 /// Каждая строка: [ўзбекча лотин, ўзбекча кирилл, русский].
 const Map<String, List<String>> _strings = {
   'appName': ['Hudud Nazorati', 'Ҳудуд назорати', 'Худуд назорати'],
-  'appSub': ['Ishlar hisoboti', 'Ишлар ҳисоботи', 'Отчёт о работах'],
+  'appSub': ['Davomat va ishlar hisoboti', 'Давомат ва ишлар ҳисоботи', 'Посещаемость и отчёт о работах'],
   'cancel': ['Bekor qilish', 'Бекор қилиш', 'Отмена'],
   'retry': ['Qayta urinish', 'Қайта уриниш', 'Повторить'],
   'yes': ['Ha', 'Ҳа', 'Да'],
@@ -201,6 +201,7 @@ const Map<String, List<String>> _strings = {
   'faceFarther': ['Biroz uzoqroq tuting', 'Бироз узоқроқ тутинг', 'Отодвиньте телефон'],
   'faceCenter': ['Yuzni ramka markaziga oling', 'Юзни рамка марказига олинг', 'Держите лицо по центру'],
   'faceStraight': ['To\'g\'ri qarang', 'Тўғри қаранг', 'Смотрите прямо'],
+  'faceBlink': ['Ko\'zingizni yumib-oching', 'Кўзингизни юмиб-очинг', 'Моргните'],
   'faceEyes': ['Ko\'zlaringizni oching', 'Кўзларингизни очинг', 'Откройте глаза'],
   'faceHold': ['Qimirlamang…', 'Қимирламанг…', 'Не двигайтесь…'],
   'faceCapturing': ['Suratga olinmoqda…', 'Суратга олинмоқда…', 'Снимаем…'],
@@ -208,6 +209,26 @@ const Map<String, List<String>> _strings = {
     'Yuzingizni ovalga joylab, tugmani bosing',
     'Юзингизни овалга жойлаб, тугмани босинг',
     'Поместите лицо в овал и нажмите кнопку',
+  ],
+  'checkInReminder': [
+    'Bugun «Keldim» belgilanmagan — yuzingizni ovalga oling',
+    'Бугун «Келдим» белгиланмаган — юзингизни овалга олинг',
+    'Сегодня приход не отмечен — поместите лицо в овал',
+  ],
+  'checkInOnlyAtOffice': [
+    'Keldim faqat ish joyida belgilanadi',
+    'Келдим фақат иш жойида белгиланади',
+    'Приход отмечается только на рабочем месте',
+  ],
+  'gpsMocked': [
+    'Soxta joylashuv (Fake GPS) yoqilgan — o\'chiring',
+    'Сохта жойлашув (Fake GPS) ёқилган — ўчиринг',
+    'Включена подмена GPS (Fake GPS) — выключите её',
+  ],
+  'gpsLowAccuracy': [
+    'GPS aniqligi past — derazaga yoki ochiq joyga yaqinlashing',
+    'GPS аниқлиги паст — деразага ёки очиқ жойга яқинлашинг',
+    'GPS неточный — подойдите к окну или выйдите на открытое место',
   ],
   'nearOffice': ['Ofisdasiz', 'Офисдасиз', 'Вы в офисе'],
   'farFromOffice': ['Ofisdan {m} m uzoqda', 'Офисдан {m} м узоқда', 'До офиса {m} м'],
