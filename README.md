@@ -45,14 +45,20 @@
 Нужны Flutter SDK и Android SDK (Android Studio). Проверка: `flutter doctor`.
 
 ```
-powershell -ExecutionPolicy Bypass -File build-apk.ps1 -ApiUrl https://<адрес API>
+powershell -ExecutionPolicy Bypass -File build-apk.ps1               # dev и prod
+powershell -ExecutionPolicy Bypass -File build-apk.ps1 -Stand prod   # только один стенд
 ```
 
-Готовые файлы в корне проекта: `HududNazorati-arm64.apk` — почти все телефоны,
-`HududNazorati-arm32.apk` — старые 32-битные (на них arm64 не ставится).
+Адреса стендов — в начале `build-apk.ps1`: dev → `https://oxo-dev.saidolimxoja.uz`,
+prod → `https://oxo.saidolimxoja.uz` (сайт стенда, его `/api` проксирует Cloudflare Pages).
 
-Скрипт принимает только `https://`-адрес, код обфусцируется, карты символов для
-разбора отчётов о падениях остаются в `symbols/<версия>` (не в git — хранить вместе с ключом).
+Готовые файлы — в папке стенда, `dev/` или `prod/`: `HududNazorati-arm64.apk` — почти все
+телефоны, `HududNazorati-arm32.apk` — старые 32-битные (на них arm64 не ставится).
+У обеих сборок один идентификатор приложения: на телефоне стоит либо dev, либо prod,
+установка одной заменяет другую.
+
+Код обфусцируется, карты символов для разбора отчётов о падениях остаются в
+`symbols/<версия>/<стенд>` (не в git — хранить вместе с ключом).
 
 ### Ключ подписи
 
@@ -95,7 +101,7 @@ flutter run --dart-define=API_BASE_URL=https://<адрес API>
 Стек release обфусцирован; расшифровка — картами той же версии:
 
 ```
-flutter symbolize -i stack.txt -d symbols/<версия>/app.android-arm64.symbols
+flutter symbolize -i stack.txt -d symbols/<версия>/<стенд>/app.android-arm64.symbols
 ```
 
 (`app.android-arm.symbols` — для 32-битной сборки; в стеке видно `arch`.)

@@ -50,4 +50,6 @@ HududNazorati*.apk
 
 # Готовая сборка (build-apk.ps1)
 /HududNazorati*.apk
+/dev/
+/prod/
 /symbols/
