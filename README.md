@@ -108,6 +108,16 @@ flutter symbolize -i stack.txt -d symbols/<версия>/<стенд>/app.androi
 
 (`app.android-arm.symbols` — для 32-битной сборки; в стеке видно `arch`.)
 
+Android-часть стека (строки вида `at vl2.<init>(r8-map-id-…)`) расшифровывает R8 retrace
+по `symbols/<версия>/<стенд>/mapping.txt` — `pg_map_id` в начале файла должен совпасть с `r8-map-id`:
+
+```
+java -cp "%LOCALAPPDATA%\Android\Sdk\cmdline-tools\latest\lib\retrace-classpath.jar" ^
+  com.android.tools.r8.retrace.Retrace symbols/<версия>/<стенд>/mapping.txt stack.txt
+```
+
+(`java` — например, из Android Studio: `C:\Program Files\Android\Android Studio\jbr\bin\java`.)
+
 ## Проверка
 
 ```
