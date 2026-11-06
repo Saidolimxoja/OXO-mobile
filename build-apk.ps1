@@ -33,9 +33,13 @@ if (-not (Test-Path (Join-Path $PSScriptRoot 'android\key.properties'))) {
 $version = (Select-String -Path (Join-Path $PSScriptRoot 'pubspec.yaml') -Pattern '^version:\s*(\S+)').Matches[0].Groups[1].Value
 $built = Join-Path $PSScriptRoot 'build\app\outputs\flutter-apk'
 $apks = @{
-  'app-arm64-v8a-release.apk'   = 'HududNazorati-arm64.apk'
-  'app-armeabi-v7a-release.apk' = 'HududNazorati-arm32.apk'
+  'app-arm64-v8a-release.apk'   = 'arm64'
+  'app-armeabi-v7a-release.apk' = 'arm32'
 }
+
+# В имени файла — стенд и версия, чтобы сборки dev и prod разных версий не путались:
+# HududNazorati-PROD-v1.2.2-arm64.apk
+$versionName = $version.Split('+')[0]
 
 flutter pub get
 if ($LASTEXITCODE -ne 0) { throw 'flutter pub get завершился с ошибкой' }
@@ -56,7 +60,7 @@ foreach ($name in $Stand) {
 
   # Следующая сборка перезапишет build\ — копируем сразу
   foreach ($apk in $apks.Keys) {
-    $out = Join-Path $outDir $apks[$apk]
+    $out = Join-Path $outDir "HududNazorati-$($name.ToUpper())-v$versionName-$($apks[$apk]).apk"
 
     Copy-Item (Join-Path $built $apk) $out -Force
     Write-Output "Tayyor: $out"

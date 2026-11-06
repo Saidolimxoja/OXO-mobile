@@ -53,8 +53,9 @@ powershell -ExecutionPolicy Bypass -File build-apk.ps1 -Stand prod   # толь�
 prod → `https://oxo-api.saidolimxoja.uz` (API стенда в туннеле Cloudflare, напрямую, без
 Cloudflare Pages — запросы телефонов не расходуют лимит функций Pages).
 
-Готовые файлы — в папке стенда, `dev/` или `prod/`: `HududNazorati-arm64.apk` — почти все
-телефоны, `HududNazorati-arm32.apk` — старые 32-битные (на них arm64 не ставится).
+Готовые файлы — в папке стенда, `dev/` или `prod/`; в имени стенд и версия из `pubspec.yaml`:
+`HududNazorati-PROD-v1.2.2-arm64.apk` — почти все телефоны, `HududNazorati-PROD-v1.2.2-arm32.apk` —
+старые 32-битные (на них arm64 не ставится).
 У обеих сборок один идентификатор приложения: на телефоне стоит либо dev, либо prod,
 установка одной заменяет другую.
 
