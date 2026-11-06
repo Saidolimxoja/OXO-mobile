@@ -11,10 +11,13 @@ class AppConfig {
   static const tashkentOffset = Duration(hours: 5);
 
   /// Точки трека уходят на сервер не реже этого.
-  static const trackSendEvery = Duration(minutes: 2);
+  static const trackSendEvery = Duration(minutes: 5);
 
   /// Сигнал «на связи» — раз в минуту, даже без GPS.
   static const pingEvery = Duration(minutes: 1);
+
+  /// Профиль сотрудника обновляется не чаще этого при возврате в приложение.
+  static const meRefreshEvery = Duration(minutes: 30);
 
   /// Сервер принимает не больше стольких сэмплов за запрос (track.rules.ts).
   static const maxTrackBatch = 600;
