@@ -14,6 +14,7 @@ class Session extends ChangeNotifier {
 
   Me? me;
   List<WorkType> workTypes = [];
+  DateTime? _lastMeAt;
 
   /// Ишлар ҳисоботи — только у сотрудников туманов.
   bool get reportsWork => me?.canReportWork ?? false;
@@ -22,6 +23,7 @@ class Session extends ChangeNotifier {
     final api = MobileApi.instance;
 
     me = await api.me();
+    _lastMeAt = DateTime.now();
     workTypes = reportsWork ? await api.workTypes() : [];
     notifyListeners();
 
@@ -30,17 +32,28 @@ class Session extends ChangeNotifier {
 
   /// Возврат в приложение: мог смениться день (праздник, выходной), а с ним и трек.
   Future<void> refresh() async {
+    final today = ymd(tashkentNow());
+    final shouldFetchMe = _lastMeAt == null ||
+        DateTime.now().difference(_lastMeAt!) >= AppConfig.meRefreshEvery ||
+        me?.today.date != today;
+
+    if (!shouldFetchMe) {
+      await _syncTrack();
+      return;
+    }
+
     try {
       me = await MobileApi.instance.me();
+      _lastMeAt = DateTime.now();
       notifyListeners();
       await _syncTrack();
     } catch (_) {
       // Без сети день берём по телефону: Пн–Пт рабочие; праздники сервер учтёт сам
       final now = tashkentNow();
-      final today = ymd(now);
+      final currentToday = ymd(now);
 
-      if (me?.today.date != today) {
-        await _syncTrack(date: today, workingDay: now.weekday <= DateTime.friday);
+      if (me?.today.date != currentToday) {
+        await _syncTrack(date: currentToday, workingDay: now.weekday <= DateTime.friday);
       }
     }
   }
@@ -61,6 +74,7 @@ class Session extends ChangeNotifier {
     await TrackService.instance.reset();
     await MobileApi.instance.logout();
     me = null;
+    _lastMeAt = null;
     workTypes = [];
     notifyListeners();
   }

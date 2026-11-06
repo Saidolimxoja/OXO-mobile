@@ -82,9 +82,21 @@ class MobileApi {
 
   Map<String, String> get photoHeaders => _api.authHeaders;
 
-  Future<AttendanceToday> attendanceToday() async {
-    final data = await _api.get('/mobile/attendance/today') as Map<String, dynamic>;
-    return AttendanceToday.fromJson(data);
+  Future<AttendanceToday>? _attendanceTodayInFlight;
+
+  /// Главная и автозапуск «Келдим» спрашивают статус дня одновременно —
+  /// идущий запрос отдаётся обоим. Результат не кэшируется: после «Келдим» нужен свежий.
+  Future<AttendanceToday> attendanceToday() {
+    return _attendanceTodayInFlight ??= _fetchAttendanceToday();
+  }
+
+  Future<AttendanceToday> _fetchAttendanceToday() async {
+    try {
+      final data = await _api.get('/mobile/attendance/today') as Map<String, dynamic>;
+      return AttendanceToday.fromJson(data);
+    } finally {
+      _attendanceTodayInFlight = null;
+    }
   }
 
   Future<AttendanceToday> checkIn(File selfie, Position pos, CaptureMode mode) async {

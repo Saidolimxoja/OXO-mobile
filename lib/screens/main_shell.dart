@@ -36,6 +36,7 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   int _index = 0;
+  late final Set<int> _openedTabs = {_index};
   bool _loading = true;
   String? _error;
   bool _backgrounded = false;
@@ -173,7 +174,12 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
           body: SafeArea(
             child: IndexedStack(
               index: index,
-              children: [for (final tab in tabs) tab.screen],
+              children: [
+                for (var i = 0; i < tabs.length; i++)
+                  // Вкладка строится (и грузит данные) при первом открытии; текущая —
+                  // всегда: номера сдвигаются, если «Ишлар» пропадает после обновления профиля
+                  _openedTabs.contains(i) || i == index ? tabs[i].screen : const SizedBox.shrink(),
+              ],
             ),
           ),
           bottomNavigationBar: Container(
@@ -184,7 +190,10 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
             child: BottomNavigationBar(
               currentIndex: index,
               onTap: (i) {
-                setState(() => _index = i);
+                setState(() {
+                  _index = i;
+                  _openedTabs.add(i);
+                });
                 tabs[i].onSelected?.call();
               },
               items: [
