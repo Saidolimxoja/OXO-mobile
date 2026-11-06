@@ -49,8 +49,9 @@ powershell -ExecutionPolicy Bypass -File build-apk.ps1               # dev и pr
 powershell -ExecutionPolicy Bypass -File build-apk.ps1 -Stand prod   # только один стенд
 ```
 
-Адреса стендов — в начале `build-apk.ps1`: dev → `https://oxo-dev.saidolimxoja.uz`,
-prod → `https://oxo.saidolimxoja.uz` (сайт стенда, его `/api` проксирует Cloudflare Pages).
+Адреса стендов — в начале `build-apk.ps1`: dev → `https://oxo-dev-api.saidolimxoja.uz`,
+prod → `https://oxo-api.saidolimxoja.uz` (API стенда в туннеле Cloudflare, напрямую, без
+Cloudflare Pages — запросы телефонов не расходуют лимит функций Pages).
 
 Готовые файлы — в папке стенда, `dev/` или `prod/`: `HududNazorati-arm64.apk` — почти все
 телефоны, `HududNazorati-arm32.apk` — старые 32-битные (на них arm64 не ставится).

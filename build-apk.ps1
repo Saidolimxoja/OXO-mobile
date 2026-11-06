@@ -11,11 +11,14 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot
 
-# Сайт стенда: его /api проксирует Cloudflare Pages на бэкенд и передаёт настоящий
-# адрес телефона (ограничение попыток входа считается по каждому человеку)
+# Адрес API стенда в туннеле Cloudflare — напрямую, без функции Cloudflare Pages:
+# каждый запрос через Pages расходует платный лимит функций, а телефоны шлют трек
+# каждые 2 минуты. Настоящий адрес телефона сервер берёт из X-Forwarded-For,
+# который ставит Cloudflare (TRUST_PROXY), — ограничение попыток входа остаётся
+# по каждому человеку.
 $apiUrls = @{
-  dev  = 'https://oxo-dev.saidolimxoja.uz'
-  prod = 'https://oxo.saidolimxoja.uz'
+  dev  = 'https://oxo-dev-api.saidolimxoja.uz'
+  prod = 'https://oxo-api.saidolimxoja.uz'
 }
 
 # Отладочный ключ общий для всех Flutter-проектов: подписанное им обновление
