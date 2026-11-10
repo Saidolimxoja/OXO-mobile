@@ -56,6 +56,8 @@ android {
             signingConfig =
                 if (keystorePropertiesFile.exists()) signingConfigs.getByName("release")
                 else signingConfigs.getByName("debug")
+            // Свои правила R8 поверх правил Flutter (см. proguard-rules.pro)
+            proguardFiles("proguard-rules.pro")
         }
     }
 }

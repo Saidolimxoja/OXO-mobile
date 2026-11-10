@@ -66,5 +66,9 @@ foreach ($name in $Stand) {
     Write-Output "Tayyor: $out"
   }
 
+  # Карта R8 расшифровывает Android-часть стека в mobile_crash_reports (r8-map-id-…);
+  # следующая сборка её перезапишет — храним рядом с картами Dart
+  Copy-Item (Join-Path $PSScriptRoot 'build\app\outputs\mapping\release\mapping.txt') (Join-Path $symbols 'mapping.txt') -Force
+
   Write-Output "Belgilar xaritasi: $symbols"
 }

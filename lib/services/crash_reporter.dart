@@ -17,10 +17,12 @@ class CrashReporter {
   CrashReporter._();
 
   static const _keyQueue = 'crash_queue';
+  static const _keyReported = 'crash_reported_today';
 
   /// Длины — как принимает сервер (MobileCrashReportDto).
   static const _maxError = 4000;
   static const _maxStack = 30000;
+  static const _maxDedupeKey = 200;
 
   static bool _flushing = false;
 
@@ -42,6 +44,10 @@ class CrashReporter {
   /// Записать ошибку; fatal=false — ошибка перехвачена кодом, но знать о ней нужно.
   static Future<void> record(Object error, StackTrace? stack, {bool fatal = false}) async {
     try {
+      // Одинаковая некритичная ошибка — не чаще раза в сутки: ошибка камеры
+      // на каждом «Келдим» давала сотни одинаковых отчётов
+      if (!fatal && await _reportedToday(error)) return;
+
       final client = await ClientInfo.get();
       final report = {
         'appVersion': client.appVersion,
@@ -93,6 +99,30 @@ class CrashReporter {
       debugPrint('CrashReporter: $e');
     } finally {
       _flushing = false;
+    }
+  }
+
+  /// Был ли сегодня отчёт с такой же ошибкой; если нет — запоминает её.
+  /// Сбой хранилища считается «не был»: лишний отчёт лучше потерянного.
+  static Future<bool> _reportedToday(Object error) async {
+    try {
+      final key = '${error.runtimeType}:${_cut(error.toString(), _maxDedupeKey)}';
+      final prefs = await SharedPreferences.getInstance();
+      final today = ymd(tashkentNow());
+      final saved = jsonDecode(prefs.getString(_keyReported) ?? '{}');
+      final keys = saved is Map && saved['date'] == today && saved['keys'] is List
+          ? (saved['keys'] as List).map((k) => k.toString()).toList()
+          : <String>[];
+
+      if (keys.contains(key)) return true;
+
+      await prefs.setString(_keyReported, jsonEncode({'date': today, 'keys': [...keys, key]}));
+
+      return false;
+    } catch (e) {
+      debugPrint('CrashReporter: $e');
+
+      return false;
     }
   }
 
