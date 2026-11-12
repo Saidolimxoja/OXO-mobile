@@ -69,13 +69,20 @@ class Session extends ChangeNotifier {
     );
   }
 
-  Future<void> logout() async {
-    await TrackService.instance.flush();
+  /// Локальная очистка данных сотрудника: накопленный трек и профиль не должны
+  /// достаться следующему вошедшему пользователю.
+  Future<void> clearLocal() async {
     await TrackService.instance.reset();
-    await MobileApi.instance.logout();
+
     me = null;
     _lastMeAt = null;
     workTypes = [];
     notifyListeners();
+  }
+
+  Future<void> logout() async {
+    await TrackService.instance.flush();
+    await clearLocal();
+    await MobileApi.instance.logout();
   }
 }
