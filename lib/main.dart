@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'api/api_client.dart';
 import 'screens/login_screen.dart';
 import 'screens/main_shell.dart';
 import 'services/crash_reporter.dart';
+import 'services/session.dart';
 import 'settings.dart';
 import 'theme.dart';
 
@@ -18,6 +21,8 @@ Future<void> main() async {
 
   // Сессию восстановить не удалось (refresh истёк или отозван) — снова вход
   ApiClient.instance.onSessionExpired = () {
+    unawaited(Session.instance.clearLocal());
+
     navigatorKey.currentState?.pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const LoginScreen()),
       (_) => false,
