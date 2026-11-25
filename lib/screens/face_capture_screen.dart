@@ -127,11 +127,12 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
         (c) => c.lensDirection == CameraLensDirection.front,
         orElse: () => cameras.first,
       );
+      // NV21 есть только на Android; на iOS камера отдаёт и ML Kit принимает bgra8888
       final camera = CameraController(
         lens,
         ResolutionPreset.high,
         enableAudio: false,
-        imageFormatGroup: ImageFormatGroup.nv21,
+        imageFormatGroup: Platform.isIOS ? ImageFormatGroup.bgra8888 : ImageFormatGroup.nv21,
       );
 
       await camera.initialize();
@@ -249,19 +250,27 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
     final rotation = lens == null ? null : InputImageRotationValue.fromRawValue(lens.sensorOrientation);
     final format = InputImageFormatValue.fromRawValue(frame.format.raw);
 
-    if (rotation == null || format == null || format != InputImageFormat.nv21 || frame.planes.length != 1) {
+    final expectedFormat = Platform.isIOS ? InputImageFormat.bgra8888 : InputImageFormat.nv21;
+
+    if (rotation == null || format == null || format != expectedFormat || frame.planes.length != 1) {
       return null;
     }
 
     final plane = frame.planes.first;
-    // CameraX отдаёт NV21 с хвостом нулей, когда у строк сенсора есть отступ;
-    // ML Kit такой буфер не принимает — нужен ровно width × height × 1,5 байта
-    final size = frame.width * frame.height * 3 ~/ 2;
+    // На iOS буфер bgra8888 передаётся как есть: отступы строк ML Kit учитывает по bytesPerRow
+    var bytes = plane.bytes;
 
-    if (plane.bytes.length < size) return null;
+    if (!Platform.isIOS) {
+      // CameraX отдаёт NV21 с хвостом нулей, когда у строк сенсора есть отступ;
+      // ML Kit такой буфер не принимает — нужен ровно width × height × 1,5 байта
+      final size = frame.width * frame.height * 3 ~/ 2;
+
+      if (bytes.length < size) return null;
+      if (bytes.length > size) bytes = Uint8List.sublistView(bytes, 0, size);
+    }
 
     return InputImage.fromBytes(
-      bytes: plane.bytes.length == size ? plane.bytes : Uint8List.sublistView(plane.bytes, 0, size),
+      bytes: bytes,
       metadata: InputImageMetadata(
         size: Size(frame.width.toDouble(), frame.height.toDouble()),
         rotation: rotation,
