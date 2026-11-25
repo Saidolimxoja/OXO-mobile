@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
@@ -13,6 +14,7 @@ import '../config.dart';
 /// Точки пишутся строго 09:00–18:00 рабочего дня, остальное время не нужно ни
 /// Давомату, ни Ишлар ҳисоботи. GPS работает как foreground-сервис Android
 /// (постоянное уведомление) и продолжает писать, когда приложение свёрнуто.
+/// На iOS ту же роль играют фоновые обновления геолокации с синим индикатором.
 ///
 /// Запустить сервис геолокации Android разрешает только из открытого приложения,
 /// поэтому GPS включается при входе и при возврате в приложение (обычно это
@@ -23,6 +25,9 @@ class TrackService extends ChangeNotifier {
   static final TrackService instance = TrackService._();
 
   static const _keyBuffer = 'track_buffer';
+
+  /// Писать точку не чаще чем раз в это число метров пути.
+  static const _distanceFilter = 20;
 
   /// Рабочий ли день [_day] — по календарю сервера (праздники).
   bool workingDay = false;
@@ -81,9 +86,28 @@ class TrackService extends ChangeNotifier {
   void _startStream() {
     if (running) return;
 
-    final settings = AndroidSettings(
+    _positions = Geolocator.getPositionStream(locationSettings: _streamSettings()).listen(
+      _onPosition,
+      onError: (_) {},
+    );
+  }
+
+  LocationSettings _streamSettings() {
+    if (Platform.isIOS) {
+      // Без автопаузы: иначе iOS перестаёт присылать точки, пока сотрудник сидит в офисе
+      return AppleSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: _distanceFilter,
+        activityType: ActivityType.other,
+        pauseLocationUpdatesAutomatically: false,
+        allowBackgroundLocationUpdates: true,
+        showBackgroundLocationIndicator: true,
+      );
+    }
+
+    return AndroidSettings(
       accuracy: LocationAccuracy.high,
-      distanceFilter: 20,
+      distanceFilter: _distanceFilter,
       intervalDuration: const Duration(minutes: 1),
       foregroundNotificationConfig: const ForegroundNotificationConfig(
         notificationTitle: 'Ҳудуд назорати',
@@ -92,11 +116,6 @@ class TrackService extends ChangeNotifier {
         enableWakeLock: true,
         setOngoing: true,
       ),
-    );
-
-    _positions = Geolocator.getPositionStream(locationSettings: settings).listen(
-      _onPosition,
-      onError: (_) {},
     );
   }
 

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
@@ -22,10 +24,17 @@ class ClientInfo {
     String? os;
 
     try {
-      final android = await DeviceInfoPlugin().androidInfo;
+      if (Platform.isIOS) {
+        final ios = await DeviceInfoPlugin().iosInfo;
 
-      model = '${android.manufacturer} ${android.model}'.trim();
-      os = 'Android ${android.version.release} (SDK ${android.version.sdkInt})';
+        model = 'Apple ${ios.modelName}';
+        os = 'iOS ${ios.systemVersion}';
+      } else {
+        final android = await DeviceInfoPlugin().androidInfo;
+
+        model = '${android.manufacturer} ${android.model}'.trim();
+        os = 'Android ${android.version.release} (SDK ${android.version.sdkInt})';
+      }
     } catch (_) {
       // Без модели телефона отчёт всё равно полезен — версия приложения есть
     }
