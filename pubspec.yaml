@@ -103,7 +103,9 @@ flutter:
 # dart run flutter_launcher_icons
 flutter_launcher_icons:
   android: "ic_launcher"
-  ios: false
+  ios: true
+  # App Store не принимает иконку с прозрачностью
+  remove_alpha_ios: true
   image_path: "assets/icon/icon.png"
   adaptive_icon_background: "#FFFFFF"
   adaptive_icon_foreground: "assets/icon/icon_foreground.png"
